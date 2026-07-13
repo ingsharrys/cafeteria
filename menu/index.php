@@ -5,7 +5,7 @@ require_once __DIR__ . '/app/config/database.php';
 // Si no, inclúyelas manualmente.
 require_once __DIR__ . '/vendor/autoload.php';
 
-// Control de acceso al menú (enlace firmado enviado por WhatsApp)
+// Control de acceso al menú (enlace firmado enviado por WhatsApp / aprobación)
 require_once __DIR__ . '/app/helpers/menu_access.php';
 
 use App\Controllers\PedidoController;
@@ -16,9 +16,50 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 }
 
 /**
- * Determina si el visitante puede acceder al menú / hacer pedidos.
- * - Si llega un token válido en la URL (?t=...), abre la sesión de acceso.
- * - Si ya tiene sesión de acceso vigente, la respeta.
+ * Conexión BD del menú.
+ */
+function menu_db(): ?PDO
+{
+    static $db = null;
+    if ($db === null) {
+        try {
+            $database = new \App\Config\Database();
+            $db = $database->getConnection();
+        } catch (\Throwable $e) {
+            $db = null;
+        }
+    }
+    return $db;
+}
+
+/**
+ * ¿El cliente con ese número está aprobado?
+ */
+function menu_numero_aprobado(string $numero): bool
+{
+    $numero = preg_replace('/\D+/', '', $numero);
+    if ($numero === '') {
+        return false;
+    }
+    $db = menu_db();
+    if (!$db) {
+        return false;
+    }
+    try {
+        $st = $db->prepare("SELECT COALESCE(aprobado, 0) AS aprobado FROM clientes WHERE celular = ? LIMIT 1");
+        $st->execute([$numero]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row && (int) $row['aprobado'] === 1;
+    } catch (\Throwable $e) {
+        return false;
+    }
+}
+
+/**
+ * Determina si el visitante puede acceder al menú / hacer pedidos:
+ * 1) Token válido en la URL (?t=...) enviado por WhatsApp o por el panel.
+ * 2) Sesión de acceso vigente.
+ * 3) El número (?numero=) corresponde a un cliente ya APROBADO.
  */
 function menu_acceso_permitido(): bool
 {
@@ -36,6 +77,12 @@ function menu_acceso_permitido(): bool
     }
 
     if (!empty($_SESSION['menu_acceso']) && time() <= (int) ($_SESSION['menu_acceso']['exp'] ?? 0)) {
+        return true;
+    }
+
+    $numero = preg_replace('/\D+/', '', (string) ($_GET['numero'] ?? ''));
+    if ($numero !== '' && menu_numero_aprobado($numero)) {
+        $_SESSION['menu_acceso'] = ['exp' => time() + 3600, 'admin' => false, 'n' => $numero];
         return true;
     }
 
@@ -61,7 +108,7 @@ switch ($route) {
             header('Content-Type: application/json');
             echo json_encode([
                 'status'  => 'error',
-                'message' => 'Acceso no autorizado. Solicita el enlace del menú por WhatsApp.'
+                'message' => 'Acceso no autorizado. Solicita el acceso al menú.'
             ]);
             break;
         }
@@ -69,6 +116,46 @@ switch ($route) {
         $controller->store(); // <-- Método donde insertas el pedido y devuelves JSON
         break;
 
+    // 🆕 Solicitud de aprobación: registra al cliente como pendiente
+    case 'solicitar-acceso':
+        $nombre = trim((string) ($_POST['nombre'] ?? ''));
+        $numero = preg_replace('/\D+/', '', (string) ($_POST['numero'] ?? ''));
+        $ok = false;
+        $mensaje = '';
+
+        if ($nombre === '' || strlen($numero) < 7) {
+            $mensaje = 'Escribe tu nombre y un número de teléfono válido.';
+        } else {
+            $db = menu_db();
+            if ($db) {
+                try {
+                    $clienteModel = new \App\Models\Cliente($db);
+                    $existe = $clienteModel->getClienteByCelular($numero);
+                    if ($existe) {
+                        // Ya existe: actualizar el nombre, mantener pendiente si no está aprobado
+                        $db->prepare("UPDATE clientes SET cliente = :n WHERE id = :id")
+                           ->execute([':n' => $nombre, ':id' => $existe['id']]);
+                    } else {
+                        $clienteModel->createCliente([
+                            'name'    => $nombre,
+                            'phone'   => $numero,
+                            'email'   => 'sincorreo',
+                            'address' => '',
+                            'cedula'  => '0',
+                            'barrio'  => '',
+                        ]);
+                    }
+                    $ok = true;
+                } catch (\Throwable $e) {
+                    $mensaje = 'No se pudo registrar la solicitud. Intenta de nuevo.';
+                }
+            } else {
+                $mensaje = 'Error de conexión. Intenta más tarde.';
+            }
+        }
+
+        require __DIR__ . '/app/Views/acceso_solicitado.php';
+        break;
 
     // 🆕 Datos del cliente por teléfono (autocompletar el formulario de pedido)
     case 'cliente-info':
@@ -82,13 +169,8 @@ switch ($route) {
             echo json_encode(['found' => false]);
             break;
         }
-        try {
-            $database = new \App\Config\Database();
-            $db = $database->getConnection();
-            $cli = (new \App\Models\Cliente($db))->getClienteByCelular($numero);
-        } catch (\Throwable $e) {
-            $cli = null;
-        }
+        $db = menu_db();
+        $cli = $db ? (new \App\Models\Cliente($db))->getClienteByCelular($numero) : null;
         if ($cli) {
             echo json_encode([
                 'found'     => true,
