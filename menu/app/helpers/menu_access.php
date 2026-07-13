@@ -54,6 +54,45 @@ if (!function_exists('menu_access_secret')) {
         return 'cambia-esta-clave-en-el-env';
     }
 
+    /**
+     * Lee una variable del entorno o del .env de la raíz del sitio.
+     */
+    function menu_env(string $key, $default = null)
+    {
+        $g = getenv($key);
+        if ($g !== false && $g !== '') {
+            return $g;
+        }
+
+        static $env = null;
+        if ($env === null) {
+            $env = [];
+            $envFile = __DIR__ . '/../../../.env';
+            if (is_file($envFile)) {
+                foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+                    $line = trim($line);
+                    if ($line === '' || $line[0] === '#' || strpos($line, '=') === false) {
+                        continue;
+                    }
+                    [$k, $v] = explode('=', $line, 2);
+                    $env[trim($k)] = trim(trim($v), "\"'");
+                }
+            }
+        }
+
+        return $env[$key] ?? $default;
+    }
+
+    /**
+     * ¿Se exige que el cliente esté aprobado para poder pedir?
+     * Controlado por MENU_REQUIRE_APPROVAL en .env (por defecto: sí).
+     */
+    function menu_require_approval(): bool
+    {
+        $v = strtolower((string) menu_env('MENU_REQUIRE_APPROVAL', '1'));
+        return !in_array($v, ['0', 'false', 'no', 'off'], true);
+    }
+
     function menu_access_b64url_encode(string $data): string
     {
         return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');

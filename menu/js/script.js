@@ -341,13 +341,63 @@ $('#makeOrderButton').click(function() {
                     window.location.reload();
                 }, 2000);
             } else {
-                console.error(res.message);
+                // pendiente de aprobación, sin comprobante, etc.
+                alert(res.message || 'No se pudo enviar el pedido.');
+                submitButton.prop('disabled', false).text('Enviar pedido');
             }
         }).fail(function(jqXHR, textStatus, errorThrown) {
             console.error("Error en la solicitud AJAX:", textStatus, errorThrown);
+            alert('Error al enviar el pedido. Inténtalo de nuevo.');
             submitButton.prop('disabled', false).text('Enviar pedido');
         });
     });
+
+    // Autocompletar datos del cliente al escribir/pegar el teléfono
+    let clienteInfoTimer = null;
+    $(document).on('input change', '#customerPhone', function() {
+        const numero = ($(this).val() || '').replace(/\D+/g, '');
+        clearTimeout(clienteInfoTimer);
+        if (numero.length < 7) { mostrarEstadoCliente(null); return; }
+        clienteInfoTimer = setTimeout(function() {
+            $.getJSON('index.php?route=cliente-info&numero=' + encodeURIComponent(numero))
+                .done(function(info) {
+                    if (info && info.found) {
+                        if (info.nombre) $('#customerName').val(info.nombre);
+                        if (info.direccion && $('#customerAddress').length) $('#customerAddress').val(info.direccion);
+                        if (info.barrio && $('#customerBarrio').length) {
+                            if ($('#customerBarrio option[value="' + info.barrio + '"]').length === 0) {
+                                $('#customerBarrio').append(new Option(info.barrio, info.barrio, true, true));
+                            }
+                            $('#customerBarrio').val(info.barrio);
+                        }
+                        mostrarEstadoCliente(info.aprobado);
+                    } else {
+                        mostrarEstadoCliente(null);
+                    }
+                });
+        }, 400);
+    });
+
+    function mostrarEstadoCliente(aprobado) {
+        let el = document.getElementById('estadoClienteMsg');
+        if (!el) {
+            const phone = document.getElementById('customerPhone');
+            if (!phone || !phone.parentNode) return;
+            el = document.createElement('div');
+            el.id = 'estadoClienteMsg';
+            el.style.cssText = 'margin-top:6px; font-size:12px; font-weight:700;';
+            phone.parentNode.appendChild(el);
+        }
+        if (aprobado === 1) {
+            el.textContent = '✅ Cliente aprobado';
+            el.style.color = '#16a34a';
+        } else if (aprobado === 0) {
+            el.textContent = '⏳ Cliente pendiente de aprobación';
+            el.style.color = '#b45309';
+        } else {
+            el.textContent = '';
+        }
+    }
 
     // Ver detalles del producto
     $('.btn-details').click(function() {
