@@ -164,13 +164,30 @@ class PedidoController
         }
 
         // Si el método es Transferencia, el comprobante (imagen) es obligatorio
-        if ($metodo_pago === 'Transferencia'
-            && (empty($_FILES['payment_evidence']) || ($_FILES['payment_evidence']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK)) {
-            echo json_encode([
-                'status'  => 'error',
-                'message' => 'Debes adjuntar la imagen del comprobante de la transferencia.'
-            ]);
-            return;
+        if ($metodo_pago === 'Transferencia') {
+            $errFile = $_FILES['payment_evidence']['error'] ?? UPLOAD_ERR_NO_FILE;
+
+            if (empty($_FILES['payment_evidence']) || $errFile === UPLOAD_ERR_NO_FILE) {
+                echo json_encode([
+                    'status'  => 'error',
+                    'message' => 'Debes adjuntar la imagen del comprobante de la transferencia.'
+                ]);
+                return;
+            }
+            if ($errFile === UPLOAD_ERR_INI_SIZE || $errFile === UPLOAD_ERR_FORM_SIZE) {
+                echo json_encode([
+                    'status'  => 'error',
+                    'message' => 'La imagen del comprobante es demasiado grande. Usa una foto más liviana (máx. 12 MB).'
+                ]);
+                return;
+            }
+            if ($errFile !== UPLOAD_ERR_OK) {
+                echo json_encode([
+                    'status'  => 'error',
+                    'message' => 'No se pudo subir el comprobante. Inténtalo de nuevo.'
+                ]);
+                return;
+            }
         }
 
         try {
