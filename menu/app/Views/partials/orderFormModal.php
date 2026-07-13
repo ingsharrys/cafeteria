@@ -53,16 +53,21 @@
           <div class="form-group">
             <label for="metodoPago" style="color:#fff"><strong>Método de Pago</strong></label>
             <select class="form-control" id="metodoPago" required>
-              
-              <!-- DOMICILIOS (tipo_solicitud = 50): Solo Efectivo y Transferencia -->
-              <?php if (($tipo_solicitud ?? null) == 50): ?>
-                <option value="Transferencia" selected>💳 Transferencia</option>
-              
-              <!-- OTROS TIPOS: Todos excepto Crédito -->
-              <?php else: ?>
-                <option value="Transferencia" selected>💳 Transferencia</option>
-              <?php endif; ?>
+              <option value="Efectivo" selected>💵 Efectivo</option>
+              <option value="Transferencia">💳 Transferencia</option>
             </select>
+          </div>
+
+          <!-- ═══════════════════════════════════════════ -->
+          <!-- ✅ COMPROBANTE DE TRANSFERENCIA (solo si aplica) -->
+          <!-- ═══════════════════════════════════════════ -->
+          <div class="form-group" id="paymentEvidenceGroup" style="display:none;">
+            <label for="paymentEvidence" style="color:#fff">
+              <strong>Comprobante de la transferencia</strong>
+              <small style="color:#aaa;">(sube una foto o captura del pago)</small>
+            </label>
+            <input type="file" class="form-control" id="paymentEvidence" name="payment_evidence" accept="image/*">
+            <img id="paymentEvidencePreview" src="" alt="" style="display:none; max-width:100%; margin-top:8px; border-radius:8px;">
           </div>
 
           <div class="form-group">
@@ -81,17 +86,48 @@
 </div>
 
 <script>
-  // Mostrar/ocultar detalles de factura electrónica
   document.addEventListener('DOMContentLoaded', function() {
+    // Mostrar/ocultar detalles de factura electrónica
     const electronicInvoiceCheckbox = document.getElementById('electronicInvoice');
     const invoiceDetails = document.getElementById('invoiceDetails');
 
     if (electronicInvoiceCheckbox) {
       electronicInvoiceCheckbox.addEventListener('change', function() {
-        if (this.checked) {
-          invoiceDetails.style.display = 'block';
+        invoiceDetails.style.display = this.checked ? 'block' : 'none';
+      });
+    }
+
+    // Mostrar el campo de comprobante solo cuando el método es Transferencia
+    const metodoPago       = document.getElementById('metodoPago');
+    const evidenceGroup    = document.getElementById('paymentEvidenceGroup');
+    const evidenceInput    = document.getElementById('paymentEvidence');
+    const evidencePreview  = document.getElementById('paymentEvidencePreview');
+
+    function toggleEvidence() {
+      const esTransferencia = metodoPago.value === 'Transferencia';
+      evidenceGroup.style.display = esTransferencia ? 'block' : 'none';
+      // Obligatorio solo cuando aplica; se limpia si se cambia a Efectivo
+      evidenceInput.required = esTransferencia;
+      if (!esTransferencia) {
+        evidenceInput.value = '';
+        evidencePreview.style.display = 'none';
+        evidencePreview.src = '';
+      }
+    }
+
+    if (metodoPago && evidenceGroup && evidenceInput) {
+      metodoPago.addEventListener('change', toggleEvidence);
+      toggleEvidence(); // estado inicial
+
+      // Vista previa de la imagen seleccionada
+      evidenceInput.addEventListener('change', function() {
+        const file = this.files && this.files[0];
+        if (file) {
+          evidencePreview.src = URL.createObjectURL(file);
+          evidencePreview.style.display = 'block';
         } else {
-          invoiceDetails.style.display = 'none';
+          evidencePreview.style.display = 'none';
+          evidencePreview.src = '';
         }
       });
     }

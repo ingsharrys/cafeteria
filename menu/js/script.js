@@ -242,7 +242,29 @@ $('#makeOrderButton').click(function() {
         const customerBarrio = $('#customerBarrio').val();
         const customerEmail = $('#customerEmail').val() || 'sincorreo';
         const customerId = $('#customerId').val() || '0';
-        const comments = $('#comments').val();
+        const metodoPago = $('#metodoPago').val();
+
+        // Comprobante de transferencia (si aplica)
+        const evidenceInput = document.getElementById('paymentEvidence');
+        const paymentEvidence = (evidenceInput && evidenceInput.files.length > 0)
+            ? evidenceInput.files[0]
+            : null;
+
+        // Si el método es Transferencia, la imagen del comprobante es obligatoria
+        if (metodoPago === 'Transferencia' && !paymentEvidence) {
+            alert('Debes adjuntar la imagen del comprobante de la transferencia');
+            submitButton.prop('disabled', false).text('Enviar pedido');
+            return;
+        }
+        if (paymentEvidence && !paymentEvidence.type.startsWith('image/')) {
+            alert('El comprobante debe ser una imagen (jpg, png, etc.)');
+            submitButton.prop('disabled', false).text('Enviar pedido');
+            return;
+        }
+
+        // Registrar el método de pago dentro de los comentarios (visible en caja)
+        let comments = $('#comments').val();
+        comments = 'Metodo de pago: [' + metodoPago + ']' + (comments ? ' - ' + comments : '');
 
         // Productos seleccionados
         const selectedProducts = [];
@@ -275,17 +297,29 @@ $('#makeOrderButton').click(function() {
         });
 
         // Petici車n AJAX
-       $.post('index.php?route=pedido-store', {
-    name: customerName,
-    phone: customerPhone,
-    address: customerAddress,
-    barrio: customerBarrio,
-    email: customerEmail,
-    id: customerId,
-    products: selectedProducts,
-    tipo_solicitud: tipoSolicitud,
-    comments: comments
-}).done(function(response) {
+        // Se usa FormData para poder adjuntar la imagen del comprobante
+        const fd = new FormData();
+        fd.append('name', customerName);
+        fd.append('phone', customerPhone);
+        fd.append('address', customerAddress);
+        fd.append('barrio', customerBarrio);
+        fd.append('email', customerEmail);
+        fd.append('id', customerId);
+        fd.append('tipo_solicitud', tipoSolicitud);
+        fd.append('metodo_pago', metodoPago);
+        fd.append('comments', comments);
+        fd.append('products', JSON.stringify(selectedProducts));
+        if (paymentEvidence) {
+            fd.append('payment_evidence', paymentEvidence);
+        }
+
+        $.ajax({
+            url: 'index.php?route=pedido-store',
+            type: 'POST',
+            data: fd,
+            processData: false,
+            contentType: false
+        }).done(function(response) {
             console.log("Respuesta del servidor:", response);
             const res = JSON.parse(response);
             if (res.status === 'success') {

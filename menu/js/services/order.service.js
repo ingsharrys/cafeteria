@@ -59,6 +59,11 @@ const OrderService = {
      * Obtener datos del formulario de pedido
      */
     getOrderFormData: function() {
+        const evidenceInput = document.getElementById('paymentEvidence');
+        const paymentEvidence = (evidenceInput && evidenceInput.files.length > 0)
+            ? evidenceInput.files[0]
+            : null;
+
         return {
             tipoSolicitud: $('#tipo_solicitud').val(),
             customerName: $('#customerName').val(),
@@ -68,6 +73,7 @@ const OrderService = {
             customerEmail: $('#customerEmail').val() || 'sincorreo',
             customerId: $('#customerId').val() || '0',
             metodoPago: $('#metodoPago').val(),
+            paymentEvidence: paymentEvidence,
             comments: $('#comments').val()
         };
     },
@@ -87,6 +93,14 @@ const OrderService = {
         if (Utils.isEmpty(formData.metodoPago)) {
             errors.push('Método de pago requerido');
         }
+        // Si paga por transferencia, la evidencia (imagen) es obligatoria
+        if (formData.metodoPago === 'Transferencia' && !formData.paymentEvidence) {
+            errors.push('Debes adjuntar la imagen del comprobante de la transferencia');
+        }
+        // Validar que la evidencia sea una imagen
+        if (formData.paymentEvidence && !formData.paymentEvidence.type.startsWith('image/')) {
+            errors.push('El comprobante debe ser una imagen (jpg, png, etc.)');
+        }
 
         return {
             isValid: errors.length === 0,
@@ -98,17 +112,30 @@ const OrderService = {
      * Enviar pedido al servidor
      */
     submitOrder: function(formData, products) {
-        return $.post('index.php?route=pedido-store', {
-            name: formData.customerName,
-            phone: formData.customerPhone,
-            address: formData.customerAddress,
-            barrio: formData.customerBarrio,
-            email: formData.customerEmail,
-            id: formData.customerId,
-            products: products,
-            tipo_solicitud: formData.tipoSolicitud,
-            metodo_pago: formData.metodoPago,
-            comments: formData.comments
+        // Se usa FormData para poder adjuntar el comprobante (imagen) en la
+        // misma petición que crea el pedido.
+        const fd = new FormData();
+        fd.append('name', formData.customerName);
+        fd.append('phone', formData.customerPhone);
+        fd.append('address', formData.customerAddress);
+        fd.append('barrio', formData.customerBarrio);
+        fd.append('email', formData.customerEmail);
+        fd.append('id', formData.customerId);
+        fd.append('tipo_solicitud', formData.tipoSolicitud);
+        fd.append('metodo_pago', formData.metodoPago);
+        fd.append('comments', formData.comments);
+        fd.append('products', JSON.stringify(products));
+
+        if (formData.paymentEvidence) {
+            fd.append('payment_evidence', formData.paymentEvidence);
+        }
+
+        return $.ajax({
+            url: 'index.php?route=pedido-store',
+            type: 'POST',
+            data: fd,
+            processData: false,
+            contentType: false
         });
     },
 
