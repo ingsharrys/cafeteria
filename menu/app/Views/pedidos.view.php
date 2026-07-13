@@ -189,7 +189,7 @@ foreach ($pedidosPendientes as $p) {
 </script>
 <script>const pedidosPendientes = <?= $pedidosPendientesJSON ?>;</script>
 
-<script src="<?= $baseUrl ?>/js/script.js?cache=fhgf345"></script>
+<script src="<?= $baseUrl ?>/js/script.js?v=<?= @filemtime(__DIR__ . '/../../js/script.js') ?: time() ?>"></script>
 
 <script>
   $('#descriptionModal').on('show.bs.modal', function (event) {
