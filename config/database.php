@@ -9,9 +9,9 @@ date_default_timezone_set('America/Bogota');
 class Database
 {
     private $host = 'localhost';
-    private $db_name = 'sharrys_cafeteriapombodb';
-    private $username = 'sharrys_cafeteriapombouser';
-    private $password = 'Lz#JbsS{p^WLvh%A';
+    private $db_name = '';
+    private $username = '';
+    private $password = '';
     
     /** @var PDO|null Instancia única de PDO */
     private static $pdo = null;
@@ -38,13 +38,19 @@ class Database
      * Cargar configuración desde .env
      */
     private function loadEnvConfig() {
+        // 1) Variables de entorno del servidor (Hostinger/cPanel, docker, etc.)
+        $this->host     = getenv('DB_HOST') ?: $this->host;
+        $this->db_name  = getenv('DB_NAME') ?: $this->db_name;
+        $this->username = getenv('DB_USER') ?: $this->username;
+        $this->password = getenv('DB_PASS') !== false ? getenv('DB_PASS') : $this->password;
+
+        // 2) Archivo .env (fuera del control de versiones)
         $envFile = __DIR__ . '/../.env';
-        
+
         if (!file_exists($envFile)) {
-            // Si no existe .env, usar valores por defecto
             return;
         }
-        
+
         $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
         
         foreach ($lines as $line) {

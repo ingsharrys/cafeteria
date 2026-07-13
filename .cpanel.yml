@@ -1,0 +1,18 @@
+---
+# ============================================================================
+#  Despliegue automático de cPanel (Git Version Control → "Deploy HEAD Commit")
+# ----------------------------------------------------------------------------
+#  Copia el contenido del repositorio al DocumentRoot del sitio y ELIMINA del
+#  servidor los archivos que ya no existen en el repo (obsoletos, backups...),
+#  pero SIN tocar los archivos/carpetas de entorno y ejecución:
+#    - .env            (tus credenciales reales)
+#    - storage/        (sesiones, cache, subidas de usuarios)
+#    - vendor/         (dependencias de Composer instaladas en el servidor)
+#    - menu/vendor/, menu/storage/ (sub-app del menú)
+#
+#  ⚠️ Verifica que DEPLOYPATH apunte EXACTAMENTE a la carpeta de tu sitio.
+# ============================================================================
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/sharrys/public_html/cafeteria.sharrys.com/
+    - /usr/bin/rsync -a --delete --exclude='.git' --exclude='.cpanel.yml' --exclude='.env' --exclude='.env.*' --exclude='storage/' --exclude='vendor/' --exclude='menu/vendor/' --exclude='menu/storage/' ./ "$DEPLOYPATH"

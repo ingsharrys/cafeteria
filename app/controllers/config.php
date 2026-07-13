@@ -1,27 +1,28 @@
 <?php
 
+/**
+ * Configuración de WhatsApp Cloud API (webhooks/bot).
+ *
+ * Los valores sensibles se leen de variables de entorno / .env.
+ * Nunca escribas tokens reales en este archivo: quedan en el historial de git.
+ */
+
 return [
     // Token privado de Meta / WhatsApp Cloud API
-    'access_token' => 'EAAQItdT6HFoBQrlZAnZAHMK95xWTwHEwVNziiJ4m3y7WqEjvWsLwJm4HUmwMiXvbkQCYsifJkiS4mjps4sYCPVr7OYRW5SdsqjwYuvszQy8a4oJQiJkZBcZB9ZBGZALJ1JPQEY2bgTjbKAznT0wW72cMdjRCCcQzd98oF0ZCZAIBWNrriZBvCmvb1er26UAzy9bTZB6wZDZD',
+    'access_token'    => getenv('WA_ACCESS_TOKEN') ?: '',
 
     // Verify token del webhook
-    'verify_token' => 'heiyubai_verify_2026',
+    'verify_token'    => getenv('WA_VERIFY_TOKEN') ?: '',
 
-    // Phone Number ID de tu WhatsApp Cloud API
-    'phone_number_id' => '1010195975520716',
+    // Phone Number ID de WhatsApp Cloud API
+    'phone_number_id' => getenv('WA_PHONE_NUMBER_ID') ?: '',
 
     // WABA ID
-    'waba_id' => '1294022526209597',
+    'waba_id'         => getenv('WA_WABA_ID') ?: '',
 
-    // Nombre del negocio
-    'business_name' => 'colegio_pombo',
-
-    // Base URL del menú
-    'menu_base_url' => 'https://cafeteria.sharrys.com/menu/',
-
-    // Número del asesor
-    'advisor_phone' => '573173667467',
-
-    // Link directo al asesor
-    'asesor_url' => 'https://wa.me/573173667467',
+    // Datos públicos del negocio
+    'business_name'   => getenv('WA_BUSINESS_NAME') ?: 'colegio_pombo',
+    'menu_base_url'   => getenv('WA_MENU_BASE_URL') ?: 'https://cafeteria.sharrys.com/menu/',
+    'advisor_phone'   => getenv('WA_ADVISOR_PHONE') ?: '573173667467',
+    'asesor_url'      => getenv('WA_ADVISOR_URL') ?: 'https://wa.me/573173667467',
 ];

@@ -1,14 +1,18 @@
 <?php
 
 class WhatsAppService {
-    private $token = 'EAAQItdT6HFoBRCdmDGWwds1kwAWMPxQ7rCVRVFevyfbb7xo4nyVwVKqPUAIb8VnZAdE7ouKZBqv7gH65mAihA82WFxnHafBeZCdSBMnURgQyheQ2K4f7Q89sPiUofYg8veZBD2DZBcfpEfVvai77ObPDAbqbEwoqevF8wm8XQY7uKyHl1os5JkMHiFvy7bZC84DxSwkWu3ZCFo9Mw1wPIh9DveMHHXcYjHA848FyvutAkRP44kIWn5KYNe7e5BxkdDZAZAnJPEcjKpmZCf92K5ZCivvwAZDZD';
-    private $phoneId = '846122748583953';
+    private $token;
+    private $phoneId;
     private $apiVersion = 'v22.0';
     private $apiUrl = 'https://graph.facebook.com';
     private $enabled = true;
     private $db;
 
     public function __construct() {
+        // Credenciales desde variables de entorno / .env (nunca hardcodeadas)
+        $this->token   = getenv('WA_ACCESS_TOKEN') ?: '';
+        $this->phoneId = getenv('WA_PHONE_NUMBER_ID') ?: '846122748583953';
+
         // CARGAR BD EN EL CONSTRUCTOR
         try {
             require_once __DIR__ . '/../../config/database.php';
