@@ -88,6 +88,11 @@ export class TurnosController {
      */
     async smartRefresh() {
         try {
+            // Forzar la lista completa (since=0) en cada refresco para no
+            // depender del diferencial y garantizar que los pedidos nuevos
+            // siempre aparezcan sin recargar el navegador.
+            this.service.sinceTimestamp = 0;
+
             const turnos = await this.service.getTurnos();
 
             if (!turnos || turnos.length === 0) {
@@ -97,20 +102,24 @@ export class TurnosController {
             // Actualizar lista completa
             this.turnosCompletos = turnos;
 
-            // Buscar nuevos o modificados
-            const nuevosOModificados = turnos.filter(turno => {
-                const existente = document.getElementById(`fila-${turno.numero_pedido}`);
-                return !existente;  // Si NO existe en el DOM, es nuevo
+            // Buscar turnos nuevos (los que aún no están en el DOM)
+            const nuevos = turnos.filter(turno => {
+                return !document.getElementById(`fila-${turno.numero_pedido}`);
             });
 
-            if (nuevosOModificados.length > 0) {
-                console.log(`🔄 +${nuevosOModificados.length} turnos nuevos`);
-                
-                // Agregar nuevos turnos al inicio (porque vienen en DESC)
-                this.view.appendRows(nuevosOModificados, this.service);
-                
-                // Cargar productos para nuevos
-                this.loadProductosForTurnos(nuevosOModificados);
+            if (nuevos.length > 0) {
+                console.log(`🔄 +${nuevos.length} pedidos nuevos`);
+
+                // Insertar los nuevos ARRIBA (la lista viene en orden DESC)
+                this.view.appendRows(nuevos, this.service, true);
+
+                // Cargar productos para los nuevos
+                this.loadProductosForTurnos(nuevos);
+
+                // Notificar (sonido) que llegó un pedido nuevo
+                if (typeof window.reproducirSonidoNuevoPedido === 'function') {
+                    window.reproducirSonidoNuevoPedido();
+                }
             }
 
         } catch (error) {
