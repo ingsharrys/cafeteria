@@ -1,0 +1,10 @@
+old/
+storage/logs/
+*.log
+error_log
+*.zip
+*.sql
+*.tar.gz
+.env
+vendor/
+node_modules/

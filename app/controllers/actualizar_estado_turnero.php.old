@@ -1,0 +1,122 @@
+<?php
+/**
+ * actualizar_estado_turnero.php
+ * API para cambiar el estado de un turno
+ * 
+ * UBICACIÓN: app/controllers/actualizar_estado_turnero.php
+ */
+
+// ✅ Desactivar errores HTML
+error_reporting(0);
+ini_set('display_errors', 0);
+
+// ✅ Header JSON PRIMERO
+header('Content-Type: application/json; charset=utf-8');
+
+// ✅ Output buffering
+ob_start();
+
+try {
+    // Validar método POST
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        throw new Exception('Método no permitido');
+    }
+    
+    // Obtener datos JSON
+    $json = file_get_contents('php://input');
+    $data = json_decode($json, true);
+    
+    if (!$data) {
+        throw new Exception('Datos inválidos');
+    }
+    
+    $numeroPedido = isset($data['numero_pedido']) ? (int)$data['numero_pedido'] : 0;
+    $nuevoEstado = isset($data['nuevo_estado']) ? trim($data['nuevo_estado']) : '';
+    
+    // Validar datos
+    if ($numeroPedido <= 0) {
+        throw new Exception('Número de pedido inválido');
+    }
+    
+    if (!in_array($nuevoEstado, ['nuevo', 'en_cocina', 'entregado'])) {
+        throw new Exception('Estado inválido');
+    }
+    
+    // Conectar a BD
+    $dbPath = dirname(__DIR__, 2) . '/config/database.php';
+    
+    if (!file_exists($dbPath)) {
+        throw new Exception('Database config no encontrado');
+    }
+    
+    require_once $dbPath;
+    
+    $db = Database::getInstance();
+    $conn = $db->getConnection();
+    
+    // Actualizar estado en tabla turnero
+    $query = "UPDATE turnero SET estado = :estado WHERE id_pedido = :numero_pedido";
+    $stmt = $conn->prepare($query);
+    $stmt->bindValue(':estado', $nuevoEstado, PDO::PARAM_STR);
+    $stmt->bindValue(':numero_pedido', $numeroPedido, PDO::PARAM_INT);
+    
+    $success = $stmt->execute();
+    
+    if (!$success) {
+        throw new Exception('Error al actualizar estado');
+    }
+    
+    // Verificar si está pagado
+    $queryPagado = "SELECT COUNT(*) FROM caja WHERE id_pedidoc = :numero_pedido";
+    $stmtPagado = $conn->prepare($queryPagado);
+    $stmtPagado->bindValue(':numero_pedido', $numeroPedido, PDO::PARAM_INT);
+    $stmtPagado->execute();
+    $pagado = $stmtPagado->fetchColumn() > 0;
+    
+    // Verificar si tiene domiciliario (tabla domiciliarios o asignación)
+    $tieneDomiciliario = false;
+    try {
+        // Intentar con tabla domiciliarios
+        $queryDomi = "SELECT COUNT(*) FROM domiciliarios WHERE numero_pedido = :numero_pedido";
+        $stmtDomi = $conn->prepare($queryDomi);
+        $stmtDomi->bindValue(':numero_pedido', $numeroPedido, PDO::PARAM_INT);
+        $stmtDomi->execute();
+        $tieneDomiciliario = $stmtDomi->fetchColumn() > 0;
+    } catch (PDOException $e) {
+        // Si la tabla no existe, no pasa nada
+        $tieneDomiciliario = false;
+    }
+    
+    // Limpiar buffer
+    ob_end_clean();
+    
+    // Respuesta exitosa
+    echo json_encode([
+        'success' => true,
+        'message' => 'Estado actualizado correctamente',
+        'nuevo_estado' => $nuevoEstado,
+        'pagado' => $pagado ? 1 : 0,
+        'tiene_domiciliario' => $tieneDomiciliario ? 1 : 0
+    ], JSON_UNESCAPED_UNICODE);
+    
+} catch (PDOException $e) {
+    ob_end_clean();
+    error_log('Error BD actualizar_estado_turnero: ' . $e->getMessage());
+    
+    echo json_encode([
+        'success' => false,
+        'message' => 'Error de base de datos',
+        'error' => $e->getMessage()
+    ], JSON_UNESCAPED_UNICODE);
+    
+} catch (Exception $e) {
+    ob_end_clean();
+    error_log('Error actualizar_estado_turnero: ' . $e->getMessage());
+    
+    echo json_encode([
+        'success' => false,
+        'message' => $e->getMessage()
+    ], JSON_UNESCAPED_UNICODE);
+}
+
+exit;

@@ -1,0 +1,88 @@
+<?php
+namespace App\Models;
+
+class Domicilio {
+    private $conn;
+    private $table = "domicilios";
+
+    public $id;
+    public $id_pedido;
+    public $id_domi;
+    public $precio;
+
+    public function __construct($db) {
+        $this->conn = $db;
+    }
+
+    public function asignarDomiciliario($idPedido, $idDomiciliario) {
+        $query = "SELECT id FROM {$this->table} WHERE id_pedido = :id_pedido LIMIT 1";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id_pedido', $idPedido);
+        $stmt->execute();
+        $existe = $stmt->fetch(\PDO::FETCH_ASSOC);
+        
+        if ($existe) {
+            $query = "UPDATE {$this->table} 
+                      SET id_domi = :id_domi 
+                      WHERE id_pedido = :id_pedido";
+        } else {
+            $query = "INSERT INTO {$this->table} (id_pedido, id_domi) 
+                      VALUES (:id_pedido, :id_domi)";
+        }
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id_pedido', $idPedido);
+        $stmt->bindParam(':id_domi', $idDomiciliario);
+        
+        try {
+            return $stmt->execute();
+        } catch (\PDOException $e) {
+            error_log("Error asignando domiciliario: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function guardarPrecio($idPedido, $precio) {
+        $query = "SELECT id FROM {$this->table} WHERE id_pedido = :id_pedido LIMIT 1";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id_pedido', $idPedido);
+        $stmt->execute();
+        $existe = $stmt->fetch(\PDO::FETCH_ASSOC);
+        
+        if ($existe) {
+            $query = "UPDATE {$this->table} 
+                      SET precio = :precio 
+                      WHERE id_pedido = :id_pedido";
+        } else {
+            $query = "INSERT INTO {$this->table} (id_pedido, precio) 
+                      VALUES (:id_pedido, :precio)";
+        }
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id_pedido', $idPedido);
+        $stmt->bindParam(':precio', $precio);
+        
+        try {
+            return $stmt->execute();
+        } catch (\PDOException $e) {
+            error_log("Error guardando precio domicilio: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    public function limpiarDomiciliario($idPedido) {
+        $query = "UPDATE {$this->table} 
+                  SET id_domi = NULL 
+                  WHERE id_pedido = :id_pedido";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id_pedido', $idPedido);
+        
+        try {
+            return $stmt->execute();
+        } catch (\PDOException $e) {
+            error_log("Error limpiando domiciliario: " . $e->getMessage());
+            return false;
+        }
+    }
+}

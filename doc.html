@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Validar Código - RAW Response</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        textarea { width: 100%; min-height: 200px; font-family: monospace; }
+        button { padding: 10px 20px; font-size: 16px; margin: 10px 0; }
+        .success { background: #d4edda; padding: 10px; margin: 10px 0; }
+        .error { background: #f8d7da; padding: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Test Validar Código - Respuesta RAW</h1>
+        
+        <form id="testForm">
+            <label>Código a probar:</label><br>
+            <input type="text" id="codigo" value="1234" style="padding: 10px; font-size: 16px; width: 200px;">
+            <button type="submit">Enviar</button>
+        </form>
+
+        <h2>📥 Respuesta RAW del servidor:</h2>
+        <textarea id="rawResponse" readonly></textarea>
+
+        <h2>📊 Análisis:</h2>
+        <div id="analisis"></div>
+
+        <h2>🔍 Primeros 500 caracteres (con caracteres visibles):</h2>
+        <pre id="primerosCaracteres" style="background: #f5f5f5; padding: 10px;"></pre>
+    </div>
+
+    <script>
+        document.getElementById('testForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const codigo = document.getElementById('codigo').value;
+            const rawTextarea = document.getElementById('rawResponse');
+            const analisisDiv = document.getElementById('analisis');
+            const primerosDiv = document.getElementById('primerosCaracteres');
+            
+            rawTextarea.value = 'Enviando...';
+            analisisDiv.innerHTML = '';
+            primerosDiv.textContent = '';
+            
+            try {
+                const response = await fetch('http://localhost/heiyubai/app/controllers/validar_codigo.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'codigo=' + encodeURIComponent(codigo)
+                });
+
+                const rawText = await response.text();
+                
+                rawTextarea.value = rawText;
+                
+                // Análisis
+                let html = '<ul>';
+                html += '<li><strong>Status:</strong> ' + response.status + '</li>';
+                html += '<li><strong>Content-Type:</strong> ' + response.headers.get('content-type') + '</li>';
+                html += '<li><strong>Longitud:</strong> ' + rawText.length + ' caracteres</li>';
+                
+                // Detectar problemas
+                if (rawText.startsWith('<')) {
+                    html += '<li class="error">❌ <strong>ERROR:</strong> La respuesta empieza con HTML, no JSON</li>';
+                    html += '<li>Primeros 100 caracteres: <code>' + rawText.substring(0, 100).replace(/</g, '&lt;') + '</code></li>';
+                }
+                
+                if (rawText.includes('<br />') || rawText.includes('<b>')) {
+                    html += '<li class="error">❌ <strong>ERROR:</strong> Contiene tags HTML de error de PHP</li>';
+                }
+                
+                // Intentar parsear JSON
+                try {
+                    const json = JSON.parse(rawText);
+                    html += '<li class="success">✅ JSON válido</li>';
+                    html += '<li><strong>Respuesta parseada:</strong> <pre>' + JSON.stringify(json, null, 2) + '</pre></li>';
+                } catch (err) {
+                    html += '<li class="error">❌ <strong>ERROR:</strong> No es JSON válido: ' + err.message + '</li>';
+                }
+                
+                html += '</ul>';
+                analisisDiv.innerHTML = html;
+                
+                // Mostrar primeros caracteres con códigos ASCII
+                let primeros = '';
+                for (let i = 0; i < Math.min(500, rawText.length); i++) {
+                    const char = rawText[i];
+                    const code = char.charCodeAt(0);
+                    
+                    if (code < 32) {
+                        // Caracteres de control
+                        primeros += '[' + code + ']';
+                    } else {
+                        primeros += char;
+                    }
+                }
+                primerosDiv.textContent = primeros;
+                
+            } catch (error) {
+                rawTextarea.value = 'ERROR: ' + error.message;
+                analisisDiv.innerHTML = '<div class="error">❌ Error al hacer fetch: ' + error.message + '</div>';
+            }
+        });
+    </script>
+</body>
+</html>

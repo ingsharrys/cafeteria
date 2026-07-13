@@ -1,0 +1,337 @@
+<?php
+namespace App\Controllers;
+
+use App\Models\Mesero;
+use Core\Session;
+use Core\Response;
+use Core\Logger;
+use Core\Validator;
+
+/**
+ * MeseroController
+ * Maneja todas las operaciones relacionadas con colaboradores
+ */
+class MeseroController {
+    private $meseroModel;
+    private $validator;
+    
+    public function __construct() {
+        $db = \Database::getInstance()->getConnection();
+        $this->meseroModel = new Mesero($db);
+        $this->validator = new Validator();
+    }
+    
+    /**
+     * API: Validar código de colaborador
+     * Reemplaza: validar_codigo.php
+     */
+    public function validarCodigo() {
+        try {
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                Response::jsonError('Método no permitido', [], 405);
+                return;
+            }
+            
+            $codigo = trim($_POST['codigo'] ?? '');
+            
+            if (empty($codigo)) {
+                Response::jsonError('Código no proporcionado', [], 400);
+                return;
+            }
+            
+            $mesero = $this->meseroModel->obtenerPorCodigo($codigo);
+            
+            if ($mesero) {
+                // Guardar en sesión
+                Session::set('usuario', [
+                    'cajero' => $mesero['nombre_mese'],
+                    'rol' => $mesero['cargo'] ?? 'usuario',
+                    'id_mese' => $mesero['id_mese']
+                ]);
+                Session::set('cajero', $mesero['nombre_mese']);
+                
+                // Acceso especial para registro (código específico)
+                if ($codigo == '4587') {
+                    Session::set('registro_acceso', true);
+                }
+                
+                Logger::info("Colaborador validado", [
+                    'codigo' => $codigo,
+                    'nombre' => $mesero['nombre_mese'],
+                    'cargo' => $mesero['cargo'] ?? 'sin cargo'
+                ]);
+                
+                Response::json([
+                    'status' => 'success',
+                    'message' => "Bienvenido(a) {$mesero['nombre_mese']}.",
+                    'debug' => [
+                        'session_id' => session_id(),
+                        'cajero_guardado' => $mesero['nombre_mese']
+                    ]
+                ]);
+            } else {
+                Logger::security("Código incorrecto ingresado", [
+                    'codigo' => $codigo,
+                    'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+                ]);
+                
+                Response::json([
+                    'status' => 'error',
+                    'message' => 'Código incorrecto'
+                ]);
+            }
+            
+        } catch (\Exception $e) {
+            Logger::error('Error validando código', [
+                'error' => $e->getMessage()
+            ]);
+            Response::jsonError('Error del servidor', [$e->getMessage()], 500);
+        }
+    }
+    
+    /**
+     * API: Obtener todos los meseros
+     */
+    public function index() {
+        try {
+            $meseros = $this->meseroModel->obtenerTodos();
+            
+            Response::json([
+                'success' => true,
+                'meseros' => $meseros,
+                'count' => count($meseros)
+            ]);
+            
+        } catch (\Exception $e) {
+            Logger::error('Error obteniendo meseros', [
+                'error' => $e->getMessage()
+            ]);
+            Response::jsonError('Error obteniendo meseros', [], 500);
+        }
+    }
+    
+    /**
+     * API: Obtener meseros por cargo
+     */
+    public function obtenerPorCargo() {
+        try {
+            $cargo = $_GET['cargo'] ?? null;
+            
+            if (!$cargo) {
+                Response::jsonError('Cargo requerido', [], 400);
+                return;
+            }
+            
+            $meseros = $this->meseroModel->obtenerPorCargo($cargo);
+            
+            Response::json([
+                'success' => true,
+                'meseros' => $meseros,
+                'cargo' => $cargo
+            ]);
+            
+        } catch (\Exception $e) {
+            Logger::error('Error obteniendo meseros por cargo', [
+                'error' => $e->getMessage()
+            ]);
+            Response::jsonError('Error del servidor', [], 500);
+        }
+    }
+    
+    /**
+     * API: Obtener mesero por ID
+     */
+    public function obtenerPorId() {
+        try {
+            $id = $_GET['id'] ?? null;
+            
+            if (!$id) {
+                Response::jsonError('ID requerido', [], 400);
+                return;
+            }
+            
+            $mesero = $this->meseroModel->obtenerPorId($id);
+            
+            if ($mesero) {
+                Response::json([
+                    'success' => true,
+                    'mesero' => $mesero
+                ]);
+            } else {
+                Response::jsonError('Mesero no encontrado', [], 404);
+            }
+            
+        } catch (\Exception $e) {
+            Logger::error('Error obteniendo mesero', [
+                'error' => $e->getMessage()
+            ]);
+            Response::jsonError('Error del servidor', [], 500);
+        }
+    }
+    
+    /**
+     * API: Crear nuevo mesero
+     */
+    public function crear() {
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+            
+            // Validar datos requeridos
+            $this->validator->required($data['nombre_mese'] ?? '', 'nombre_mese');
+            $this->validator->required($data['cedula_mese'] ?? '', 'cedula_mese');
+            $this->validator->required($data['cod_mese'] ?? '', 'cod_mese');
+            
+            if ($this->validator->hasErrors()) {
+                Response::jsonError(
+                    'Datos incompletos',
+                    $this->validator->getErrors(),
+                    400
+                );
+                return;
+            }
+            
+            // Verificar duplicados
+            if ($this->meseroModel->codigoExiste($data['cod_mese'])) {
+                Response::jsonError('El código ya está registrado', [], 400);
+                return;
+            }
+            
+            if ($this->meseroModel->cedulaExiste($data['cedula_mese'])) {
+                Response::jsonError('La cédula ya está registrada', [], 400);
+                return;
+            }
+            
+            // Crear mesero
+            $this->meseroModel->nombre_mese = $data['nombre_mese'];
+            $this->meseroModel->phon_mese = $data['phon_mese'] ?? '';
+            $this->meseroModel->cedula_mese = $data['cedula_mese'];
+            $this->meseroModel->cargo = $data['cargo'] ?? 'mesero';
+            $this->meseroModel->cod_mese = $data['cod_mese'];
+            
+            $success = $this->meseroModel->crear();
+            
+            if ($success) {
+                Logger::info("Mesero creado", [
+                    'id' => $this->meseroModel->id_mese,
+                    'nombre' => $this->meseroModel->nombre_mese
+                ]);
+                
+                Response::json([
+                    'success' => true,
+                    'message' => 'Mesero creado exitosamente',
+                    'id' => $this->meseroModel->id_mese
+                ]);
+            } else {
+                Response::jsonError('Error al crear mesero', [], 500);
+            }
+            
+        } catch (\Exception $e) {
+            Logger::error('Error creando mesero', [
+                'error' => $e->getMessage()
+            ]);
+            Response::jsonError('Error del servidor', [$e->getMessage()], 500);
+        }
+    }
+    
+    /**
+     * API: Actualizar mesero
+     */
+    public function actualizar() {
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $id = $data['id_mese'] ?? null;
+            
+            if (!$id) {
+                Response::jsonError('ID de mesero requerido', [], 400);
+                return;
+            }
+            
+            // Verificar duplicados (excluyendo el mismo registro)
+            if ($this->meseroModel->codigoExiste($data['cod_mese'], $id)) {
+                Response::jsonError('El código ya está registrado', [], 400);
+                return;
+            }
+            
+            if ($this->meseroModel->cedulaExiste($data['cedula_mese'], $id)) {
+                Response::jsonError('La cédula ya está registrada', [], 400);
+                return;
+            }
+            
+            // Actualizar
+            $this->meseroModel->id_mese = $id;
+            $this->meseroModel->nombre_mese = $data['nombre_mese'];
+            $this->meseroModel->phon_mese = $data['phon_mese'] ?? '';
+            $this->meseroModel->cedula_mese = $data['cedula_mese'];
+            $this->meseroModel->cargo = $data['cargo'] ?? 'mesero';
+            $this->meseroModel->cod_mese = $data['cod_mese'];
+            
+            $success = $this->meseroModel->actualizar();
+            
+            if ($success) {
+                Logger::info("Mesero actualizado", [
+                    'id' => $id,
+                    'nombre' => $this->meseroModel->nombre_mese
+                ]);
+                Response::jsonSuccess('Mesero actualizado exitosamente');
+            } else {
+                Response::jsonError('Error al actualizar mesero', [], 500);
+            }
+            
+        } catch (\Exception $e) {
+            Logger::error('Error actualizando mesero', [
+                'error' => $e->getMessage()
+            ]);
+            Response::jsonError('Error del servidor', [], 500);
+        }
+    }
+    
+    /**
+     * API: Eliminar mesero
+     */
+    public function eliminar() {
+        try {
+            $data = json_decode(file_get_contents('php://input'), true);
+            $id = $data['id'] ?? null;
+            
+            if (!$id) {
+                Response::jsonError('ID requerido', [], 400);
+                return;
+            }
+            
+            $success = $this->meseroModel->eliminar($id);
+            
+            if ($success) {
+                Logger::info("Mesero eliminado", ['id' => $id]);
+                Response::jsonSuccess('Mesero eliminado exitosamente');
+            } else {
+                Response::jsonError('Error al eliminar mesero', [], 500);
+            }
+            
+        } catch (\Exception $e) {
+            Logger::error('Error eliminando mesero', [
+                'error' => $e->getMessage()
+            ]);
+            Response::jsonError('Error del servidor', [], 500);
+        }
+    }
+    
+    /**
+     * API: Obtener estadísticas de meseros
+     */
+    public function estadisticas() {
+        try {
+            $stats = $this->meseroModel->getEstadisticas();
+            
+            Response::json([
+                'success' => true,
+                'estadisticas' => $stats
+            ]);
+            
+        } catch (\Exception $e) {
+            Logger::error('Error obteniendo estadísticas', [
+                'error' => $e->getMessage()
+            ]);
+            Response::jsonError('Error del servidor', [], 500);
+        }
+    }
+}

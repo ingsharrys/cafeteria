@@ -1,0 +1,263 @@
+<?php
+namespace App\Models;
+
+/**
+ * Modelo Turno
+ * Maneja pedidos del turnero (domicilios y recoger)
+ */
+class Turno {
+    private $conn;
+    private $table = "turnero";
+
+    public $id_t;
+    public $id_pedido;
+    public $id_cliente;
+    public $turno;
+    public $fecha;
+    public $tipo_solicitud;
+    public $estado;
+
+    public function __construct($db) {
+        $this->conn = $db;
+    }
+
+    /**
+     * Obtener turnos por tipo de solicitud y fecha
+     */
+    public function obtenerPorTipo($tipoSolicitud, $fecha = null) {
+        if ($fecha === null) {
+            $fecha = date('Y-m-d');
+        }
+        
+        $query = "SELECT 
+                    t.id_t,
+                    t.id_pedido AS numero_pedido,
+                    t.turno,
+                    t.fecha,
+                    t.tipo_solicitud,
+                    t.estado,
+                    t.updated_at,
+                    c.cliente,
+                    c.celular AS telefono,
+                    c.direccion,
+                    c.barrio,
+                    (SELECT COUNT(*) FROM caja WHERE id_pedidoc = t.id_pedido) AS pagado,
+                    (SELECT COUNT(*) FROM domicilios WHERE id_pedido = t.id_pedido AND id_domi IS NOT NULL) AS tiene_domiciliario,
+                    (SELECT COUNT(*) FROM domicilios WHERE id_pedido = t.id_pedido) AS tiene_precio
+                  FROM {$this->table} t
+                  LEFT JOIN clientes c ON t.id_cliente = c.id
+                  WHERE t.tipo_solicitud = :tipo_solicitud
+                    AND DATE(t.fecha) = :fecha
+                  ORDER BY t.fecha DESC";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':tipo_solicitud', $tipoSolicitud, \PDO::PARAM_INT);
+        $stmt->bindParam(':fecha', $fecha, \PDO::PARAM_STR);
+        $stmt->execute();
+        
+        $turnos = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        
+        // Convertir tipos
+        foreach ($turnos as &$turno) {
+            $turno['pagado'] = (int)$turno['pagado'] > 0 ? 1 : 0;
+            $turno['tiene_domiciliario'] = (int)$turno['tiene_domiciliario'] > 0 ? 1 : 0;
+            $turno['tiene_precio'] = (int)$turno['tiene_precio'] > 0;
+        }
+        
+        return $turnos;
+    }
+
+    /**
+     * Obtener turno por ID de pedido
+     */
+    public function obtenerPorPedido($numeroPedido) {
+        $query = "SELECT 
+                    t.*,
+                    c.cliente,
+                    c.celular AS telefono,
+                    c.direccion,
+                    c.barrio
+                  FROM {$this->table} t
+                  LEFT JOIN clientes c ON t.id_cliente = c.id
+                  WHERE t.id_pedido = :numero_pedido
+                  LIMIT 1";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':numero_pedido', $numeroPedido, \PDO::PARAM_INT);
+        $stmt->execute();
+        
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Crear nuevo turno
+     */
+    public function crear() {
+        // Obtener siguiente número de turno
+        $this->turno = $this->getSiguienteTurno($this->tipo_solicitud);
+        
+        $query = "INSERT INTO {$this->table} 
+                  (id_pedido, id_cliente, turno, fecha, tipo_solicitud, estado, updated_at)
+                  VALUES 
+                  (:id_pedido, :id_cliente, :turno, NOW(), :tipo_solicitud, 'preparacion', NOW())";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':id_pedido', $this->id_pedido);
+        $stmt->bindParam(':id_cliente', $this->id_cliente);
+        $stmt->bindParam(':turno', $this->turno);
+        $stmt->bindParam(':tipo_solicitud', $this->tipo_solicitud);
+        
+        try {
+            return $stmt->execute();
+        } catch (\PDOException $e) {
+            error_log("Error creando turno: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Actualizar estado del turno
+     */
+    public function actualizarEstado($numeroPedido, $nuevoEstado) {
+        // Validar estado
+        $estadosValidos = ['preparacion', 'espera', 'entregado'];
+        if (!in_array($nuevoEstado, $estadosValidos)) {
+            return false;
+        }
+        
+        $query = "UPDATE {$this->table} 
+                  SET estado = :estado,
+                      updated_at = NOW()
+                  WHERE id_pedido = :numero_pedido";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':estado', $nuevoEstado);
+        $stmt->bindParam(':numero_pedido', $numeroPedido, \PDO::PARAM_INT);
+        
+        try {
+            return $stmt->execute();
+        } catch (\PDOException $e) {
+            error_log("Error actualizando estado turno: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Obtener siguiente número de turno
+     */
+    private function getSiguienteTurno($tipoSolicitud) {
+        $fecha = date('Y-m-d');
+        
+        $query = "SELECT MAX(turno) as max_turno 
+                  FROM {$this->table}
+                  WHERE tipo_solicitud = :tipo_solicitud
+                    AND DATE(fecha) = :fecha";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':tipo_solicitud', $tipoSolicitud);
+        $stmt->bindParam(':fecha', $fecha);
+        $stmt->execute();
+        
+        $result = $stmt->fetch(\PDO::FETCH_ASSOC);
+        $maxTurno = $result['max_turno'] ?? 0;
+        
+        return (int)$maxTurno + 1;
+    }
+
+    /**
+     * Verificar si turno está pagado
+     */
+    public function estaPagado($numeroPedido) {
+        $query = "SELECT COUNT(*) FROM caja WHERE id_pedidoc = :numero_pedido";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':numero_pedido', $numeroPedido, \PDO::PARAM_STR);
+        $stmt->execute();
+        
+        return $stmt->fetchColumn() > 0;
+    }
+
+    /**
+     * Verificar si tiene domiciliario asignado
+     */
+    public function tieneDomiciliario($numeroPedido) {
+        try {
+            $query = "SELECT COUNT(*) FROM domicilios 
+                      WHERE id_pedido = :numero_pedido 
+                        AND id_domi IS NOT NULL";
+            $stmt = $this->conn->prepare($query);
+            $stmt->bindParam(':numero_pedido', $numeroPedido, \PDO::PARAM_INT);
+            $stmt->execute();
+            
+            return $stmt->fetchColumn() > 0;
+        } catch (\PDOException $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Eliminar turno
+     */
+    public function eliminar($numeroPedido) {
+        $query = "DELETE FROM {$this->table} WHERE id_pedido = :numero_pedido";
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':numero_pedido', $numeroPedido);
+        
+        try {
+            return $stmt->execute();
+        } catch (\PDOException $e) {
+            error_log("Error eliminando turno: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Obtener estadísticas de turnos
+     */
+    public function getEstadisticas($tipoSolicitud, $fecha = null) {
+        if ($fecha === null) {
+            $fecha = date('Y-m-d');
+        }
+        
+        $query = "SELECT 
+                    COUNT(*) as total,
+                    SUM(CASE WHEN estado = 'preparacion' THEN 1 ELSE 0 END) as nuevos,
+                    SUM(CASE WHEN estado = 'espera' THEN 1 ELSE 0 END) as espera,
+                    SUM(CASE WHEN estado = 'entregado' THEN 1 ELSE 0 END) as entregados,
+                    SUM(CASE WHEN (SELECT COUNT(*) FROM caja WHERE id_pedidoc = t.id_pedido) > 0 THEN 1 ELSE 0 END) as pagados
+                  FROM {$this->table} t
+                  WHERE t.tipo_solicitud = :tipo_solicitud
+                    AND DATE(t.fecha) = :fecha";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':tipo_solicitud', $tipoSolicitud, \PDO::PARAM_INT);
+        $stmt->bindParam(':fecha', $fecha, \PDO::PARAM_STR);
+        $stmt->execute();
+        
+        return $stmt->fetch(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Obtener turnos pendientes (no entregados o no pagados)
+     */
+    public function obtenerPendientes($tipoSolicitud) {
+        $fecha = date('Y-m-d');
+        
+        $query = "SELECT 
+                    t.*,
+                    c.cliente
+                  FROM {$this->table} t
+                  LEFT JOIN clientes c ON t.id_cliente = c.id
+                  WHERE t.tipo_solicitud = :tipo_solicitud
+                    AND DATE(t.fecha) = :fecha
+                    AND (t.estado != 'entregado' 
+                         OR (SELECT COUNT(*) FROM caja WHERE id_pedidoc = t.id_pedido) = 0)
+                  ORDER BY t.fecha ASC";
+        
+        $stmt = $this->conn->prepare($query);
+        $stmt->bindParam(':tipo_solicitud', $tipoSolicitud, \PDO::PARAM_INT);
+        $stmt->bindParam(':fecha', $fecha, \PDO::PARAM_STR);
+        $stmt->execute();
+        
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+    }
+}
