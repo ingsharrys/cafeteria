@@ -213,10 +213,15 @@ class WhatsAppWebhookController
     {
         $numero = $this->normalizePhone($customerPhone);
 
+        // Token firmado que autoriza el acceso al menú (válido 1 hora)
+        require_once __DIR__ . '/../../menu/app/helpers/menu_access.php';
+        $token = menu_access_generate($numero, 3600, false);
+
         $params = http_build_query([
             'route'  => 'pedidos',
             'pedido' => $pedidoType,
             'numero' => $numero,
+            't'      => $token,
         ]);
 
         return rtrim((string)($this->config['menu_base_url'] ?? ''), '/') . '/?' . $params;

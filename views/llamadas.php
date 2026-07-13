@@ -1,4 +1,11 @@
-<!-- 
+<?php
+// Token de acceso de administrador para abrir el menú (el cajero registra
+// pedidos sin necesidad del enlace de WhatsApp). Solo se genera aquí porque
+// esta vista únicamente se muestra a usuarios autenticados en el panel.
+require_once __DIR__ . '/../menu/app/helpers/menu_access.php';
+$adminMenuToken = menu_access_generate('*', 8 * 3600, true);
+?>
+<!--
     llamadas.php - Vista Recoger
     Muestra: Pedidos para Recoger en Restaurante (53)
 -->
@@ -10,6 +17,7 @@
             <form action="../menu/" method="get" onsubmit="openPopupWindow(this); return false;">
                 <input type="hidden" name="route" value="pedidos">
                 <input type="hidden" name="pedido" value="call">
+                <input type="hidden" name="t" value="<?php echo htmlspecialchars($adminMenuToken ?? ''); ?>">
                 
                 <div class="form-group">
                     <label for="orderNumberInput">Número del celular:</label>
