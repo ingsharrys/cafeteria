@@ -100,7 +100,7 @@ export class TurnosView {
      * ✅ OPTIMIZADO: Batch rendering con documentFragment
      * No borra la tabla, solo agrega filas nuevas
      */
-    appendRows(turnos, service) {
+    appendRows(turnos, service, prepend = false) {
         const tbody = document.getElementById('tbd');
         if (!tbody) return;
 
@@ -126,8 +126,12 @@ export class TurnosView {
             }
         });
 
-        // ✅ Una sola operación DOM
-        tbody.appendChild(fragment);
+        // ✅ Una sola operación DOM (arriba si es prepend, si no al final)
+        if (prepend && tbody.firstChild) {
+            tbody.insertBefore(fragment, tbody.firstChild);
+        } else {
+            tbody.appendChild(fragment);
+        }
     }
 
     createRow(turno, service) {
@@ -249,7 +253,7 @@ export class TurnosView {
         // Verificar si existe imagen de pago para este pedido y agregar botón si aplica
         (function(numero, container){
             try {
-                fetch(`/cafeteria-pombo/menu/payment_image.php?numero_pedido=${numero}`)
+                fetch(`../menu/payment_image.php?numero_pedido=${numero}`)
                     .then(r => r.json())
                     .then(resp => {
                         if (resp && resp.status === 'ok' && resp.url) {
@@ -460,6 +464,25 @@ if (typeof window !== 'undefined') {
             btn.disabled = false;
             console.log('⚠️ Botón mantiene "DESPACHAR" AMARILLO (falta domiciliario o precio)');
         }
+    };
+}
+
+// Sonido de notificación cuando llega un pedido nuevo (falla en silencio si
+// el navegador bloquea el autoplay hasta que el usuario interactúe con la página)
+if (typeof window !== 'undefined' && typeof window.reproducirSonidoNuevoPedido !== 'function') {
+    let audioNuevoPedido = null;
+    window.reproducirSonidoNuevoPedido = function() {
+        try {
+            if (!audioNuevoPedido) {
+                audioNuevoPedido = new Audio('../views/notificacion.mp3');
+                audioNuevoPedido.volume = 0.6;
+            }
+            audioNuevoPedido.currentTime = 0;
+            const p = audioNuevoPedido.play();
+            if (p && typeof p.catch === 'function') {
+                p.catch(() => {/* autoplay bloqueado, se ignora */});
+            }
+        } catch (e) {/* sin sonido */}
     };
 }
 

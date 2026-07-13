@@ -7,10 +7,9 @@ if (!$numero) {
     exit;
 }
 
-$storageDir = __DIR__ . '/storage/../../public/img/payments/';
-// ajustar ruta: __DIR__ es menu/, storage real en ../storage
+// __DIR__ es menu/, las imágenes se guardan en la carpeta public/ del sitio
 $storageDir = __DIR__ . '/../public/img/payments/';
-$webDir = '/cafeteria-pombo/public/img/payments/';
+$webDir = '/public/img/payments/';
 
 $found = glob($storageDir . $numero . '.*');
 if ($found && count($found) > 0) {

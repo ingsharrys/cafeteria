@@ -16,7 +16,7 @@ $baseUrl = rtrim($baseUrl, '/');
 if ($baseUrl === '.' || $baseUrl === '\\' || $baseUrl === '/') {
     $baseUrl = '';
 }
-$logoUrl = 'http://localhost/cafeteria-pombo/public/img/logo-pideyapp.png';
+$logoUrl = '/public/img/logo-pideyapp.png';
 
 /**
  * Renderiza la lista de productos de un pedido.
@@ -675,41 +675,45 @@ function renderProductos(array $productos): void
                 <?php echo $pedidoPendiente['pagado'] ? '✅ Pagado' : '⏳ Pendiente de pago'; ?>
             </div>
 
-            <!-- Mensaje de pago NEQUI -->
-            <div style="text-align:center; margin-top:12px;">
-                <p style="font-weight:700; font-size:14px;">Realice el pago al número de NEQUI: 3112492225</p>
-            </div>
-
-            <!-- Formulario para subir una sola foto de pago -->
+            <!-- Comprobante de pago -->
             <?php if (!empty($pedidoPendiente) && !empty($pedidoPendiente['id_pedido'])): ?>
                 <?php
                     $storageDir = __DIR__ . '/../../../public/img/payments/';
-                    $webDir = '/cafeteria-pombo/public/img/payments/';
+                    $webDir = '/public/img/payments/';
                     $imgUrl = null;
                     if (is_dir($storageDir)) {
                         $files = glob($storageDir . $pedidoPendiente['id_pedido'] . '.*');
                         if (!empty($files)) {
-                            $imgUrl = $webDir . basename($files[0]);
+                            // cache-busting para que se vea la imagen recién subida
+                            $imgUrl = $webDir . basename($files[0]) . '?v=' . @filemtime($files[0]);
                         }
                     }
                 ?>
 
-                <div style="text-align:center; margin-top:10px;">
-                    <?php if ($imgUrl): ?>
-                        <div style="margin-bottom:8px;">
-                            <img src="<?php echo htmlspecialchars($imgUrl); ?>" alt="Imagen de pago" style="max-width:220px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.08);">
+                <?php if ($imgUrl): ?>
+                    <!-- Ya se subió el comprobante: mostrar la imagen (no pedir subir de nuevo) -->
+                    <div style="text-align:center; margin-top:16px;">
+                        <div style="font-weight:700; font-size:13px; color:#15803d; margin-bottom:8px;">
+                            ✅ Comprobante de pago recibido
                         </div>
-                    <?php endif; ?>
-
-                    <form action="<?php echo $baseUrl; ?>/index.php?route=estado-pedido" method="POST" enctype="multipart/form-data" style="display:inline-block; text-align:left;">
-                        <input type="hidden" name="id_pedido" value="<?php echo htmlspecialchars($pedidoPendiente['id_pedido']); ?>">
-                        <input type="hidden" name="numero" value="<?php echo htmlspecialchars($celular); ?>">
-                        <div style="display:flex; gap:8px; align-items:center;">
-                            <input type="file" name="pago_img" accept="image/*" required style="padding:6px;">
-                            <button type="submit" class="btn-accion" style="padding:10px 14px;">Subir foto de pago</button>
-                        </div>
-                    </form>
-                </div>
+                        <img src="<?php echo htmlspecialchars($imgUrl); ?>" alt="Comprobante de pago" style="max-width:260px; width:100%; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.12);">
+                    </div>
+                <?php else: ?>
+                    <!-- Aún no hay comprobante: informar NEQUI y permitir subir -->
+                    <div style="text-align:center; margin-top:12px;">
+                        <p style="font-weight:700; font-size:14px;">Realice el pago al número de NEQUI: 3112492225</p>
+                    </div>
+                    <div style="text-align:center; margin-top:10px;">
+                        <form action="<?php echo $baseUrl; ?>/index.php?route=estado-pedido" method="POST" enctype="multipart/form-data" style="display:inline-block; text-align:left;">
+                            <input type="hidden" name="id_pedido" value="<?php echo htmlspecialchars($pedidoPendiente['id_pedido']); ?>">
+                            <input type="hidden" name="numero" value="<?php echo htmlspecialchars($celular); ?>">
+                            <div style="display:flex; gap:8px; align-items:center;">
+                                <input type="file" name="pago_img" accept="image/*" required style="padding:6px;">
+                                <button type="submit" class="btn-accion" style="padding:10px 14px;">Subir foto de pago</button>
+                            </div>
+                        </form>
+                    </div>
+                <?php endif; ?>
             <?php endif; ?>
         </div>
 
