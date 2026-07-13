@@ -144,9 +144,28 @@ class ProductosService {
             `;
         }
 
+        // Extraer el método de pago del comentario (formato "Metodo de pago: [X]")
+        let metodoPago = null;
+        let comentarioLimpio = (comentario || '').trim();
+        const matchPago = comentarioLimpio.match(/Met[oó]do de pago:\s*\[([^\]]+)\]\s*-?\s*/i);
+        if (matchPago) {
+            metodoPago = matchPago[1].trim();
+            comentarioLimpio = comentarioLimpio.replace(matchPago[0], '').trim();
+        }
+
+        // Etiqueta del método de pago (azul = transferencia, verde = efectivo)
+        let metodoHTML = '';
+        if (metodoPago) {
+            const esTransfer = /transfer/i.test(metodoPago);
+            const bg = esTransfer ? '#0d6efd' : '#198754';
+            const icon = esTransfer ? '💳' : '💵';
+            metodoHTML = `<div style="margin:4px 0;"><span style="display:inline-block;background:${bg};color:#fff;font-weight:700;font-size:11px;padding:3px 10px;border-radius:12px;">${icon} Pago: ${metodoPago}</span></div>`;
+        }
+
         adicionalesHTML += `
             <strong>Total del pedido:</strong> $${total.toFixed(0)}<br>
-            <strong>Comentario:</strong> ${comentario?.trim() || 'No disponible'}
+            ${metodoHTML}
+            <strong>Comentario:</strong> ${comentarioLimpio || 'No disponible'}
         `;
 
         cell.innerHTML = productosHTML + adicionalesHTML;

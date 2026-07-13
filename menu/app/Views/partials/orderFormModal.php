@@ -62,6 +62,9 @@
           <!-- ✅ COMPROBANTE DE TRANSFERENCIA (solo si aplica) -->
           <!-- ═══════════════════════════════════════════ -->
           <div class="form-group" id="paymentEvidenceGroup" style="display:none;">
+            <div style="background:#fff3cd; color:#664d03; border-radius:8px; padding:10px; margin-bottom:10px; font-weight:700; text-align:center;">
+              Realice el pago al número de NEQUI: 3112492225
+            </div>
             <label for="paymentEvidence" style="color:#fff">
               <strong>Comprobante de la transferencia</strong>
               <small style="color:#aaa;">(sube una foto o captura del pago)</small>

@@ -196,9 +196,9 @@ class EstadoPedidoController
         // Redirigir de vuelta a la vista de estado
         $numero = $_POST['numero'] ?? null;
         if ($numero) {
-            header('Location: /cafeteria-pombo/menu/index.php?route=estado-pedido&numero=' . urlencode($numero));
+            header('Location: /menu/index.php?route=estado-pedido&numero=' . urlencode($numero));
         } else {
-            header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? '/cafeteria-pombo/menu/index.php'));
+            header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? '/menu/index.php'));
         }
         exit;
     }
