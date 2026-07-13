@@ -6,11 +6,19 @@ use PDOException;
 
 class Database
 {
-    private $host = 'localhost';
-    private $db_name = 'sharrys_cafeteriapombodb';
-    private $username = 'sharrys_cafeteriapombouser';
-    private $password = 'Lz#JbsS{p^WLvh%A';
+    private $host;
+    private $db_name;
+    private $username;
+    private $password;
     public $conn;
+
+    public function __construct()
+    {
+        $this->host     = getenv('DB_HOST') ?: 'localhost';
+        $this->db_name  = getenv('DB_NAME') ?: '';
+        $this->username = getenv('DB_USER') ?: '';
+        $this->password = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
+    }
 
     public function getConnection()
     {

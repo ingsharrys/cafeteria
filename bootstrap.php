@@ -4,16 +4,22 @@
  * Versión ajustada para Hostinger + detección automática de raíz
  */
 
-// ─── ACTIVAR ERRORES TEMPORAL (borrar cuando funcione) ─────────────
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// ─── MANEJO DE ERRORES SEGÚN ENTORNO ──────────────────────────────
+// En producción NUNCA se muestran errores al usuario; solo se registran.
+$appDebug = filter_var(getenv('APP_DEBUG'), FILTER_VALIDATE_BOOLEAN);
+ini_set('display_errors', $appDebug ? '1' : '0');
+ini_set('display_startup_errors', $appDebug ? '1' : '0');
+error_reporting($appDebug ? E_ALL : (E_ALL & ~E_DEPRECATED & ~E_NOTICE));
+ini_set('log_errors', '1');
 
-// ─── LOG INICIAL ──────────────────────────────────────────────────────
-$logFile = __DIR__ . '/debug_bootstrap.log';
+// ─── LOG INICIAL (solo en modo debug) ─────────────────────────────────
+$logFile = __DIR__ . '/storage/logs/bootstrap.log';
 function logBoot($msg) {
-    global $logFile;
-    file_put_contents($logFile, date('Y-m-d H:i:s') . " - $msg\n", FILE_APPEND);
+    global $logFile, $appDebug;
+    if (!$appDebug) {
+        return;
+    }
+    @file_put_contents($logFile, date('Y-m-d H:i:s') . " - $msg\n", FILE_APPEND);
 }
 logBoot("bootstrap.php iniciado");
 

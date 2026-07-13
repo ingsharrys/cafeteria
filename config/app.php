@@ -78,7 +78,7 @@ class Config
             'DB_HOST' => self::env('DB_HOST', 'localhost'),
             'DB_NAME' => self::env('DB_NAME', 'sharrys_cafeteriapombodb'),
             'DB_USER' => self::env('DB_USER', 'sharrys_cafeteriapombouser'),
-            'DB_PASS' => self::env('DB_PASS', '+=6]2Kh8WxFQQ^$r'),
+            'DB_PASS' => self::env('DB_PASS', ''),
             'DB_CHARSET' => 'utf8mb4',
             'DB_TIMEZONE' => '-05:00',
             

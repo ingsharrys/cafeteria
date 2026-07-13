@@ -1,10 +1,58 @@
-old/
-storage/logs/
+# ==============================================================
+#  .gitignore — Sistema de Cafetería / PideYApp
+# ==============================================================
+
+# --- Entorno y secretos ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cer
+*.crt
+config/secrets.php
+
+# --- Dependencias ---
+/vendor/
+node_modules/
+
+# --- Logs ---
 *.log
 error_log
+storage/logs/
+debug_bootstrap.log
+
+# --- Sesiones y cache (datos de ejecución) ---
+storage/sessions/
+storage/cache/
+!storage/**/.gitkeep
+
+# --- Subidas de usuarios (fotos de pagos, etc.) ---
+storage/uploads/*
+!storage/uploads/.gitkeep
+
+# --- Backups y temporales ---
+*.bak
+*.backup
+*.backup.*
+*.old
+*_old.*
+*.save
+*.swp
+*.tmp
+*.lock
+*~
+
+# --- Archivos comprimidos y dumps ---
 *.zip
-*.sql
 *.tar.gz
-.env
-vendor/
-node_modules/
+*.sql
+
+# --- Configuración de servidor local (no versionar) ---
+old/
+
+# --- Sistema operativo / editores ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
