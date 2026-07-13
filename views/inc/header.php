@@ -49,6 +49,7 @@ $pagina_titulos = [
     'meseros.php'        => 'Colaboradores',
     'consolidado.php'    => 'Consolidado',
     'reportes.php'       => 'Reportes',
+    'clientes.php'       => 'Clientes',
 ];
 
 // Construir menú
@@ -59,6 +60,9 @@ $cargo = $_SESSION['rol_nombre'] ?? 'default';
 if ($cargo === 'admin' && is_array($paginas_permitidas)) {
     if (!in_array('tarifas.php', $paginas_permitidas)) {
         $paginas_permitidas[] = 'tarifas.php';
+    }
+    if (!in_array('clientes.php', $paginas_permitidas)) {
+        $paginas_permitidas[] = 'clientes.php';
     }
 }
 
@@ -79,9 +83,9 @@ if (!$cajeroValidado) {
             'dashboard.php' => 'Pedidos', 'llamadas.php' => 'Recoger/WP', 'whatsapp.php' => 'Domicilios', 
             'productos.php' => 'Productos', 'estadistica.php' => 'Estadísticas', 
             'domiciliarios.php' => 'Domiciliarios', 'meseros.php' => 'Colaboradores', 
-            'gastos.php' => 'Gastos', 'consolidado.php' => 'Consolidado', 
+            'gastos.php' => 'Gastos', 'consolidado.php' => 'Consolidado',
             'register.php' => 'Registrar', 'reportes.php' => 'Reportes',
-            'tarifas.php' => 'Tarifas'
+            'tarifas.php' => 'Tarifas', 'clientes.php' => 'Clientes'
         ],
         'cajero'  => ['dashboard.php' => 'Pedidos', 'llamadas.php' => 'Recoger/WP', 'gastos.php' => 'Gastos', 'whatsapp.php' => 'Domicilios', 'consolidado.php' => 'Consolidado', 'domiciliarios.php' => 'Domiciliarios'],
         'default' => ['dashboard.php' => 'Pedidos', 'llamadas.php' => 'Recoger/WP', 'whatsapp.php' => 'Domicilios']

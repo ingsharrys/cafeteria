@@ -70,6 +70,38 @@ switch ($route) {
         break;
 
 
+    // 🆕 Datos del cliente por teléfono (autocompletar el formulario de pedido)
+    case 'cliente-info':
+        header('Content-Type: application/json');
+        if (!menu_acceso_permitido()) {
+            echo json_encode(['found' => false, 'error' => 'no_autorizado']);
+            break;
+        }
+        $numero = preg_replace('/\D+/', '', (string) ($_GET['numero'] ?? ''));
+        if ($numero === '') {
+            echo json_encode(['found' => false]);
+            break;
+        }
+        try {
+            $database = new \App\Config\Database();
+            $db = $database->getConnection();
+            $cli = (new \App\Models\Cliente($db))->getClienteByCelular($numero);
+        } catch (\Throwable $e) {
+            $cli = null;
+        }
+        if ($cli) {
+            echo json_encode([
+                'found'     => true,
+                'nombre'    => $cli['cliente']   ?? '',
+                'direccion' => $cli['direccion'] ?? '',
+                'barrio'    => $cli['barrio']    ?? '',
+                'aprobado'  => array_key_exists('aprobado', $cli) ? (int) $cli['aprobado'] : 1,
+            ]);
+        } else {
+            echo json_encode(['found' => false]);
+        }
+        break;
+
     // 🆕 NUEVA RUTA PARA VER ESTADO DEL PEDIDO
     case 'estado-pedido':
         $controller = new EstadoPedidoController();

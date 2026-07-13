@@ -138,6 +138,11 @@ try {
             (new EditPedidoApiController($db))->handle($route, $method);
             break;
 
+        case 'clientes':
+            require_once __DIR__ . '/app/controllers/ClienteApiController.php';
+            (new ClienteApiController($db))->handle($route, $method);
+            break;
+
         case 'caja':
             require_once __DIR__ . '/app/controllers/CajaApiController.php';
             (new CajaApiController($db))->handle($route, $method);

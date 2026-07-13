@@ -70,6 +70,7 @@ $allowed = [
     'caja_tm.php',
     'procesar_caja.php',
     'tarifas.php',
+    'clientes.php',
 ];
 if (!in_array($page, $allowed)) {
     http_response_code(403);

@@ -215,6 +215,24 @@ class PedidoController
                 ]);
             }
 
+            // 4b. Control de aprobación: solo clientes aprobados pueden pedir.
+            //     El cliente ya quedó creado/actualizado arriba (pendiente si es
+            //     nuevo), así que el administrador podrá aprobarlo desde el panel.
+            require_once __DIR__ . '/../helpers/menu_access.php';
+            $esAdmin = !empty($_SESSION['menu_acceso']['admin']);
+            if (menu_require_approval() && !$esAdmin) {
+                $cli = $clienteModel->getClienteByCelular($phone);
+                // Si la columna 'aprobado' no existe todavía, no se bloquea.
+                $aprobado = array_key_exists('aprobado', (array) $cli) ? (int) $cli['aprobado'] : 1;
+                if ($aprobado !== 1) {
+                    echo json_encode([
+                        'status'  => 'pending',
+                        'message' => 'Tu cuenta está pendiente de aprobación. Un administrador te habilitará muy pronto. 🙌'
+                    ]);
+                    return;
+                }
+            }
+
             // 5. Insertar pedido (productos, turno, comentarios...)
             //    Para eso, define un método createPedido() en tu modelo Pedido
             $dataPedido = [
