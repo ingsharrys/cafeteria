@@ -152,8 +152,26 @@ class PedidoController
         $email         = $_POST['email']           ?? 'sincorreo';
         $cedula        = $_POST['id']              ?? '0';
         $tipo_solicitud= $_POST['tipo_solicitud']  ?? 1;
-        $products      = $_POST['products']        ?? []; 
+        $metodo_pago   = $_POST['metodo_pago']     ?? 'Efectivo';
         $comments      = $_POST['comments']        ?? '';
+
+        // Los productos llegan como JSON (FormData). Se admite también un
+        // array directo por compatibilidad con envíos antiguos.
+        $products = $_POST['products'] ?? [];
+        if (is_string($products)) {
+            $decoded  = json_decode($products, true);
+            $products = is_array($decoded) ? $decoded : [];
+        }
+
+        // Si el método es Transferencia, el comprobante (imagen) es obligatorio
+        if ($metodo_pago === 'Transferencia'
+            && (empty($_FILES['payment_evidence']) || ($_FILES['payment_evidence']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK)) {
+            echo json_encode([
+                'status'  => 'error',
+                'message' => 'Debes adjuntar la imagen del comprobante de la transferencia.'
+            ]);
+            return;
+        }
 
         try {
             // 4. Verificar si el cliente existe por su teléfono
@@ -191,11 +209,16 @@ class PedidoController
 
             // Llamamos a createPedido del modelo Pedido
             $result = $pedidoModel->createPedido($dataPedido, $clientId);
-            
-            // 🆕 INSERTAR COSTO DE DOMICILIO
-if ($result['status'] === 'success') {
-    $clienteModel->insertCostoDomicilioCliente($barrio, $result['order_number']);
-}
+
+            if ($result['status'] === 'success') {
+                // 🆕 INSERTAR COSTO DE DOMICILIO
+                $clienteModel->insertCostoDomicilioCliente($barrio, $result['order_number']);
+
+                // 🆕 GUARDAR COMPROBANTE DE TRANSFERENCIA (si aplica)
+                if ($metodo_pago === 'Transferencia' && !empty($_FILES['payment_evidence'])) {
+                    $this->savePaymentEvidence((int) $result['order_number'], $_FILES['payment_evidence']);
+                }
+            }
 
             // 6. Responder en JSON
             echo json_encode($result);
@@ -204,6 +227,50 @@ if ($result['status'] === 'success') {
             // En caso de error de la base de datos
             echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * Guardar la imagen del comprobante de transferencia asociada a un pedido.
+     * Se almacena como public/img/payments/{numero_pedido}.{ext}, igual que el
+     * flujo de subida desde la vista de estado del pedido.
+     *
+     * @return bool  true si se guardó correctamente
+     */
+    private function savePaymentEvidence(int $orderNumber, array $file): bool
+    {
+        if ($orderNumber <= 0 || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            return false;
+        }
+
+        // Validar que realmente sea una imagen
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mime  = finfo_file($finfo, $file['tmp_name']);
+        finfo_close($finfo);
+        if (strpos((string) $mime, 'image/') !== 0) {
+            return false;
+        }
+
+        $ext     = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+        if (!in_array($ext, $allowed, true)) {
+            $ext = 'jpg';
+        }
+
+        $uploadsDir = __DIR__ . '/../../../public/img/payments/';
+        if (!is_dir($uploadsDir) && !mkdir($uploadsDir, 0755, true) && !is_dir($uploadsDir)) {
+            return false;
+        }
+
+        // Eliminar comprobantes previos del mismo pedido (otras extensiones)
+        foreach (glob($uploadsDir . $orderNumber . '.*') ?: [] as $prev) {
+            if (is_file($prev)) {
+                @unlink($prev);
+            }
+        }
+
+        $target = $uploadsDir . $orderNumber . '.' . $ext;
+
+        return move_uploaded_file($file['tmp_name'], $target);
     }
 
     private function renderView($viewName, $data = [])
