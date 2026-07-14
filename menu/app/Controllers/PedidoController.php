@@ -220,6 +220,21 @@ class PedidoController
             //     nuevo), así que el administrador podrá aprobarlo desde el panel.
             require_once __DIR__ . '/../helpers/menu_access.php';
             $esAdmin = !empty($_SESSION['menu_acceso']['admin']);
+
+            // 4a. Geocerca: solo se puede pedir cerca del colegio (2 km)
+            if (!$esAdmin) {
+                require_once __DIR__ . '/../helpers/geo.php';
+                $lat = isset($_POST['lat']) && $_POST['lat'] !== '' ? (float) $_POST['lat'] : null;
+                $lng = isset($_POST['lng']) && $_POST['lng'] !== '' ? (float) $_POST['lng'] : null;
+                if (!geo_dentro_del_rango($lat, $lng)) {
+                    echo json_encode([
+                        'status'  => 'error',
+                        'message' => 'Debes permitir tu ubicación y estar dentro del área de cobertura (2 km del colegio) para hacer el pedido.'
+                    ]);
+                    return;
+                }
+            }
+
             if (menu_require_approval() && !$esAdmin) {
                 $cli = $clienteModel->getClienteByCelular($phone);
                 // Si la columna 'aprobado' no existe todavía, no se bloquea.
