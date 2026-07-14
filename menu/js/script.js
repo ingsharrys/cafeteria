@@ -234,6 +234,20 @@ $('#makeOrderButton').click(function() {
         const submitButton = $(this).find('button[type="submit"]');
         submitButton.prop('disabled', true).text('Enviando...');
 
+        // Geocerca: solo se puede pedir dentro de 2 km del colegio
+        const distColegio = window.__distanciaColegio ? window.__distanciaColegio() : null;
+        if (distColegio === null) {
+            alert('Debes permitir el acceso a tu ubicación para hacer el pedido.');
+            if (typeof solicitarUbicacion === 'function') solicitarUbicacion();
+            submitButton.prop('disabled', false).text('Enviar pedido');
+            return;
+        }
+        if (distColegio > 2000) {
+            alert('Estás fuera del área de cobertura (2 km del colegio). No es posible hacer el pedido desde aquí.');
+            submitButton.prop('disabled', false).text('Enviar pedido');
+            return;
+        }
+
         // Obt谷n todos los datos
         const tipoSolicitud = $('#tipo_solicitud').val();
         const customerName = $('#customerName').val();
@@ -312,6 +326,10 @@ $('#makeOrderButton').click(function() {
         if (paymentEvidence) {
             fd.append('payment_evidence', paymentEvidence);
         }
+        if (window.__ubicacion) {
+            fd.append('lat', window.__ubicacion.lat);
+            fd.append('lng', window.__ubicacion.lng);
+        }
 
         $.ajax({
             url: 'index.php?route=pedido-store',
@@ -351,6 +369,37 @@ $('#makeOrderButton').click(function() {
             submitButton.prop('disabled', false).text('Enviar pedido');
         });
     });
+
+    // ── Geolocalización: el ecommerce solo funciona cerca del colegio ──
+    const COLEGIO = { lat: 2.9240484, lng: -75.2846054, radio: 2000 };
+    window.__ubicacion = null;
+
+    function distanciaMetros(lat1, lng1, lat2, lng2) {
+        const R = 6371000;
+        const toRad = d => d * Math.PI / 180;
+        const dLat = toRad(lat2 - lat1);
+        const dLng = toRad(lng2 - lng1);
+        const a = Math.sin(dLat / 2) ** 2 +
+                  Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function solicitarUbicacion() {
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(
+            pos => { window.__ubicacion = { lat: pos.coords.latitude, lng: pos.coords.longitude }; },
+            () => { window.__ubicacion = null; },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+        );
+    }
+
+    window.__distanciaColegio = function () {
+        return window.__ubicacion
+            ? distanciaMetros(window.__ubicacion.lat, window.__ubicacion.lng, COLEGIO.lat, COLEGIO.lng)
+            : null;
+    };
+
+    solicitarUbicacion(); // pedir permiso al cargar
 
     // Autocompletar datos del cliente al escribir/pegar el teléfono
     let clienteInfoTimer = null;

@@ -1,7 +1,7 @@
 <?php
 /**
  * Helper para verificar horario de atención
- * Horario: 9:00 AM - 10:00 PM (21:00)
+ * Horario: 6:00 AM - 9:30 AM
  * Zona horaria: América/Bogotá (Colombia UTC-5)
  */
 
@@ -18,9 +18,9 @@ function isOpen() {
     $minutoActual = (int)date('i');
     $horarioEnMinutos = ($horaActual * 60) + $minutoActual;
     
-    // Horario: 9:00 AM (540 minutos) a 10:00 PM (1320 minutos)
-    $horaApertura = 9 * 60;      // 540 minutos (9:00 AM)
-    $horaCierre = 23 * 60;       // 1320 minutos (10:00 PM)
+    // Horario: 6:00 AM (360 minutos) a 9:30 AM (570 minutos)
+    $horaApertura = 6 * 60;            // 360 minutos (6:00 AM)
+    $horaCierre   = (9 * 60) + 30;     // 570 minutos (9:30 AM)
     
     // Verificar si está dentro del horario
     return ($horarioEnMinutos >= $horaApertura && $horarioEnMinutos < $horaCierre);
@@ -51,7 +51,7 @@ function getStatusMessage() {
     } else {
         return [
             'estado' => 'cerrado',
-            'mensaje' => "Cerrado. Abrimos a las 9:00 AM (Hora actual: $horaActual)"
+            'mensaje' => "Cerrado. Atendemos de 6:00 AM a 9:30 AM (Hora actual: $horaActual)"
         ];
     }
 }
