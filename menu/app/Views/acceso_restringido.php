@@ -37,8 +37,8 @@ $numeroPrev  = preg_replace('/\D+/', '', (string) ($_GET['numero'] ?? ''));
 <body>
     <div class="card">
         <div class="icon">📝</div>
-        <h1>Solicitar acceso</h1>
-        <p class="sub">Para pedir en <strong><?php echo htmlspecialchars($negocio); ?></strong> necesitas que un administrador apruebe tu cuenta. Deja tus datos y te habilitaremos.</p>
+        <h1>Regístrate para pedir</h1>
+        <p class="sub">Déjanos tus datos y empieza a pedir en <strong><?php echo htmlspecialchars($negocio); ?></strong>. Es solo una vez. 🙌</p>
 
         <form method="POST" action="index.php?route=solicitar-acceso">
             <label for="nombre">Nombre completo</label>
@@ -48,7 +48,7 @@ $numeroPrev  = preg_replace('/\D+/', '', (string) ($_GET['numero'] ?? ''));
             <input type="tel" id="numero" name="numero" required placeholder="3001234567"
                    value="<?php echo htmlspecialchars($numeroPrev); ?>">
 
-            <button type="submit" class="btn">Enviar solicitud</button>
+            <button type="submit" class="btn">Empezar a pedir</button>
         </form>
 
         <a class="wa" href="<?php echo htmlspecialchars($asesorUrl); ?>" target="_blank" rel="noopener">💬 ¿Dudas? Escríbenos por WhatsApp</a>

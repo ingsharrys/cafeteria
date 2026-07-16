@@ -116,7 +116,8 @@ switch ($route) {
         $controller->store(); // <-- Método donde insertas el pedido y devuelves JSON
         break;
 
-    // 🆕 Solicitud de aprobación: registra al cliente como pendiente
+    // 🆕 Registro rápido: al llenar el formulario el cliente queda habilitado
+    //     al instante (aprobado) y entra directo a hacer su pedido.
     case 'solicitar-acceso':
         $nombre = trim((string) ($_POST['nombre'] ?? ''));
         $numero = preg_replace('/\D+/', '', (string) ($_POST['numero'] ?? ''));
@@ -129,11 +130,17 @@ switch ($route) {
             $db = menu_db();
             if ($db) {
                 try {
+                    // Asegurar que exista la columna 'aprobado'
+                    $col = $db->query("SHOW COLUMNS FROM clientes LIKE 'aprobado'")->fetch();
+                    if (!$col) {
+                        $db->exec("ALTER TABLE clientes ADD COLUMN aprobado TINYINT(1) NOT NULL DEFAULT 0");
+                        $db->exec("UPDATE clientes SET aprobado = 1");
+                    }
+
                     $clienteModel = new \App\Models\Cliente($db);
                     $existe = $clienteModel->getClienteByCelular($numero);
                     if ($existe) {
-                        // Ya existe: actualizar el nombre, mantener pendiente si no está aprobado
-                        $db->prepare("UPDATE clientes SET cliente = :n WHERE id = :id")
+                        $db->prepare("UPDATE clientes SET cliente = :n, aprobado = 1 WHERE id = :id")
                            ->execute([':n' => $nombre, ':id' => $existe['id']]);
                     } else {
                         $clienteModel->createCliente([
@@ -144,14 +151,23 @@ switch ($route) {
                             'cedula'  => '0',
                             'barrio'  => '',
                         ]);
+                        $db->prepare("UPDATE clientes SET aprobado = 1 WHERE celular = :c")
+                           ->execute([':c' => $numero]);
                     }
                     $ok = true;
                 } catch (\Throwable $e) {
-                    $mensaje = 'No se pudo registrar la solicitud. Intenta de nuevo.';
+                    $mensaje = 'No se pudo registrar. Intenta de nuevo.';
                 }
             } else {
                 $mensaje = 'Error de conexión. Intenta más tarde.';
             }
+        }
+
+        if ($ok) {
+            // Habilitar la sesión de acceso y llevarlo directo al menú
+            $_SESSION['menu_acceso'] = ['exp' => time() + 3600, 'admin' => false, 'n' => $numero];
+            header('Location: index.php?route=pedidos&pedido=call&numero=' . urlencode($numero));
+            exit;
         }
 
         require __DIR__ . '/app/Views/acceso_solicitado.php';
