@@ -242,7 +242,10 @@
             <div class="schedule-title">
                 <i class="fas fa-calendar-alt"></i> Horario de Atención
             </div>
-            <div class="schedule-time">5:00 AM - 9:30 AM</div>
+            <div class="schedule-time"><?php
+                $cfgH = function_exists('horario_config') ? horario_config() : ['apertura' => '05:00', 'cierre' => '09:30'];
+                echo htmlspecialchars(horario_formato_12h($cfgH['apertura']) . ' - ' . horario_formato_12h($cfgH['cierre']));
+            ?></div>
             <div class="schedule-description">
                 Recibimos pedidos en la mañana, todos los días
             </div>

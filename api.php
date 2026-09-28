@@ -143,6 +143,11 @@ try {
             (new ClienteApiController($db))->handle($route, $method);
             break;
 
+        case 'horario':
+            require_once __DIR__ . '/app/controllers/HorarioApiController.php';
+            (new HorarioApiController($db))->handle($route, $method);
+            break;
+
         case 'caja':
             require_once __DIR__ . '/app/controllers/CajaApiController.php';
             (new CajaApiController($db))->handle($route, $method);
