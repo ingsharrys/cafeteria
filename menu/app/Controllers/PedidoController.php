@@ -163,14 +163,17 @@ class PedidoController
             $products = is_array($decoded) ? $decoded : [];
         }
 
-        // Si el método es Transferencia, el comprobante (imagen) es obligatorio
-        if ($metodo_pago === 'Transferencia') {
+        // El comprobante de pago es OBLIGATORIO para el cliente (transferencia a
+        // la cuenta de la cafetería). El cajero/admin puede omitirlo (cobra en
+        // caja). Se exige aunque manipulen el método de pago en el POST.
+        $esAdminPago = !empty($_SESSION['menu_acceso']['admin']);
+        if ($metodo_pago === 'Transferencia' || !$esAdminPago) {
             $errFile = $_FILES['payment_evidence']['error'] ?? UPLOAD_ERR_NO_FILE;
 
             if (empty($_FILES['payment_evidence']) || $errFile === UPLOAD_ERR_NO_FILE) {
                 echo json_encode([
                     'status'  => 'error',
-                    'message' => 'Debes adjuntar la imagen del comprobante de la transferencia.'
+                    'message' => 'Debes adjuntar el comprobante de pago (transferencia a la cuenta de la cafetería) para que tu pedido sea válido.'
                 ]);
                 return;
             }
@@ -264,8 +267,9 @@ class PedidoController
                 // 🆕 INSERTAR COSTO DE DOMICILIO
                 $clienteModel->insertCostoDomicilioCliente($barrio, $result['order_number']);
 
-                // 🆕 GUARDAR COMPROBANTE DE TRANSFERENCIA (si aplica)
-                if ($metodo_pago === 'Transferencia' && !empty($_FILES['payment_evidence'])) {
+                // 🆕 GUARDAR COMPROBANTE DE PAGO (si se adjuntó)
+                $errEvid = $_FILES['payment_evidence']['error'] ?? UPLOAD_ERR_NO_FILE;
+                if (!empty($_FILES['payment_evidence']) && $errEvid === UPLOAD_ERR_OK) {
                     $this->savePaymentEvidence((int) $result['order_number'], $_FILES['payment_evidence']);
                 }
             }

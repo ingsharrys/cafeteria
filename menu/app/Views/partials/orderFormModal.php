@@ -53,21 +53,25 @@
           <div class="form-group">
             <label for="metodoPago" style="color:#fff"><strong>Método de Pago</strong></label>
             <select class="form-control" id="metodoPago" required>
-              <option value="Efectivo" selected>💵 Efectivo</option>
-              <option value="Transferencia">💳 Transferencia</option>
+              <option value="Transferencia" selected>💳 Transferencia</option>
+              <?php if (!empty($_SESSION['menu_acceso']['admin'])): ?>
+                <option value="Efectivo">💵 Efectivo</option>
+              <?php endif; ?>
             </select>
           </div>
 
           <!-- ═══════════════════════════════════════════ -->
-          <!-- ✅ COMPROBANTE DE TRANSFERENCIA (solo si aplica) -->
+          <!-- ✅ COMPROBANTE DE TRANSFERENCIA (obligatorio) -->
           <!-- ═══════════════════════════════════════════ -->
           <div class="form-group" id="paymentEvidenceGroup" style="display:none;">
-            <div style="background:#fff3cd; color:#664d03; border-radius:8px; padding:10px; margin-bottom:10px; font-weight:700; text-align:center;">
-              Realice el pago al número de NEQUI: 3112492225
+            <div style="background:#fff3cd; color:#664d03; border-radius:8px; padding:12px; margin-bottom:10px; font-weight:700; text-align:center; line-height:1.5;">
+              💳 TRANSFERENCIAS SOLO PARA CAFETERÍA<br>
+              <span style="font-size:1.05em;">BANCOLOMBIA · Cuenta de Ahorros</span><br>
+              <span style="font-size:1.25em; letter-spacing:1px;">No 07600091101</span>
             </div>
             <label for="paymentEvidence" style="color:#fff">
-              <strong>Comprobante de la transferencia</strong>
-              <small style="color:#aaa;">(sube una foto o captura del pago)</small>
+              <strong>Comprobante de pago (obligatorio)</strong>
+              <small style="color:#aaa;">Sube la foto o captura del pago para que tu pedido sea válido.</small>
             </label>
             <input type="file" class="form-control" id="paymentEvidence" name="payment_evidence" accept="image/*">
             <img id="paymentEvidencePreview" src="" alt="" style="display:none; max-width:100%; margin-top:8px; border-radius:8px;">

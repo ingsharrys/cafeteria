@@ -242,7 +242,7 @@
             <div class="schedule-title">
                 <i class="fas fa-calendar-alt"></i> Horario de Atención
             </div>
-            <div class="schedule-time">6:00 AM - 9:30 AM</div>
+            <div class="schedule-time">5:00 AM - 9:30 AM</div>
             <div class="schedule-description">
                 Recibimos pedidos en la mañana, todos los días
             </div>
